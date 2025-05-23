@@ -1,6 +1,10 @@
+# Rick's Lifestyle Licence (RLL 1.0)
+
+This licence is about my lifestyle -- please respect it.
+
 ## Notice
 
-Copyright 2025 , Rick Wesson and Support Intelligence, Inc
+Copyright 2025 By Rick Wesson & Support Intelligence, Inc.
 
 ## Terms and Conditions
 
@@ -27,6 +31,8 @@ below.
 A Permitted Purpose is any purpose other than a Competing Use. A Competing Use
 means making the Software available to others in a commercial product or
 service that:
+
+0. Uses the software source as an imput into any AI algorthim for training or digestion.
 
 1. substitutes for the Software;
 
