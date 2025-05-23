@@ -1,0 +1,30 @@
+
+syntax = "proto3";
+option go_package = "main/iidf/holloman";
+
+package holloman ;
+
+message ServiceCapabilities {
+	string 		Acceleration = 10 ;
+	int32		MaxOrder	 = 20 ;
+	string		Magic		 = 30 ;
+	bool		Ssdeep		 = 40 ;
+} ;
+
+message BufferRequest {
+	bytes	Buffer = 10 ;
+} ;
+
+message BufferResponse {
+	int32	HOrder    	= 10 ;
+	bytes   Id 			= 20 ;
+	string  Magic     	= 30 ;
+	string  Ssdeep      = 40 ;
+} ; 
+
+service Holloman {
+	rpc Capabilities(ServiceCapabilities) returns(ServiceCapabilities) ;
+
+	rpc ClusterBuffer(BufferRequest) returns(BufferResponse) ;
+} ;
+
