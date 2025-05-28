@@ -14,7 +14,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
     "github.com/bamiaux/rez"
-	"gopkg.in/gographics/imagick.v2/imagick"
+	// "gopkg.in/gographics/imagick.v2/imagick"
 )
 const (
 	M_PI = 3.141592653589793115997963468544185161590576171875
@@ -29,6 +29,7 @@ type HilbertCurve struct {
     Y     []uint32
 }
 
+/**
 func init(){
  	imagick.Initialize()
 }
@@ -36,6 +37,7 @@ func init(){
 func Close(){
 	imagick.Terminate()
 }
+**/
 
 // LoadHilbertCurve reads a gzipped Hilbert curve from a file and returns it
 func LoadHilbertCurve(filename string) (*HilbertCurve, error) {
