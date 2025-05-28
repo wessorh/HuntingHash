@@ -1,4 +1,6 @@
-
+// Copyright 2025 (c) By Rick Wesson & Support Intelligence, Inc.
+// Licenced under the RLL 1.0
+// protoc --go_out=.  --go-grpc_out=. holloman.proto
 syntax = "proto3";
 option go_package = "main/iidf/holloman";
 
@@ -13,13 +15,17 @@ message ServiceCapabilities {
 
 message BufferRequest {
 	bytes	Buffer = 10 ;
+	string  Label  = 20 ;
 } ;
 
 message BufferResponse {
 	int32	HOrder    	= 10 ;
-	bytes   Id 			= 20 ;
+	int32   Len			= 15 ;
+	string  Id 			= 20 ;
 	string  Magic     	= 30 ;
 	string  Ssdeep      = 40 ;
+	string  Sha1		= 50 ;
+	string  Label       = 60 ;
 } ; 
 
 service Holloman {

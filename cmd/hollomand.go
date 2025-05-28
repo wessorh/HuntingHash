@@ -1,18 +1,26 @@
 package main
+
 //
 // Copyright 2025 (c) By Rick Wesson & Support Intelligence, Inc.
 // Licenced under the RLL 1.0
 
-// go:generate  protoc protoc --go_out=.  --go-grpc_out=. holloman.proto
+// go:generate  protoc --go_out=.  --go-grpc_out=. holloman.proto
 import (
 	"context"
+	_ "embed"
+	"strings"
+	"bytes"
+	"sync"
 	"flag"
 	"fmt"
 	"net"
 	"os"
+	"io"
 	"syscall"
 	"time"
-  _ "embed"
+	"net/http"
+    "crypto/sha1"
+	"encoding/json"
 
 	"github.com/OneOfOne/xxhash"
 	"github.com/hosom/gomagic"
@@ -22,35 +30,37 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	// "google.golang.org/grpc/metadata"
-	// "google.golang.org/grpc/peer"
-	// "google.golang.org/grpc/reflection"
 
 	"github.com/glaslos/ssdeep"
 )
 
-const ()
+const (
+	BUFFER_LEN_MIN = 64
+)
 
 var (
-	curveFile 	string
-	damonize  	*bool
-	dna       	*bool
-	location  	string
-	ep        	string // execution pattern (client, server, stand_alone)
-	filename  	string
-	verbose   	*bool
-	ssdf		*bool
+	curveFile string
+	damonize  *bool
+	dna       *bool
+	location  string
+	ep        string // execution pattern (client, server, stand_alone)
+	filename  string
+	verbose   *bool
+	ssdf      *bool
+	rest_port string
 
-	// go:embed LICENCE.txt
-	LICENCE		[]byte
+	//go:embed LICENSE.md
+	LICENCE string
 )
 
 type HollomanServer struct {
 	holloman.HollomanServer
 
-	curve *holloman.HilbertCurve
-	m     *magic.Magic
+	curve 	*holloman.HilbertCurve
+	m     	*magic.Magic
+	mu 		sync.Mutex // mutex prevents cgo memory access errors on calls to libmagic
 }
+
 
 func NewServer(curve *holloman.HilbertCurve, dna bool) (s *HollomanServer, err error) {
 
@@ -67,16 +77,75 @@ func NewServer(curve *holloman.HilbertCurve, dna bool) (s *HollomanServer, err e
 	}
 	return s, nil
 }
+func restCapabilities(hs *HollomanServer) http.Handler {
+
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		cp, _ := hs.Capabilities(context.Background(), nil)
+		log.Debug().Msgf("/capabilities %v", cp)
+		js, err := json.Marshal(cp)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
+	}
+
+	return http.HandlerFunc(fn)
+}
+
+func restClusterBuffer(hs *HollomanServer) http.Handler {
+
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		breq := new(holloman.BufferRequest)
+		r.ParseMultipartForm(32 << 20) // limit your max input length!
+		var buf bytes.Buffer
+		// in your case file would be fileupload
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			panic(err)
+		}
+		defer file.Close()
+		name := strings.Split(header.Filename, ".")
+//		log.Debug().Msgf("File name %s\n", name[0])
+		breq.Label=name[0]
+		// Copy the file data to my buffer
+		io.Copy(&buf, file)
+
+		breq.Buffer = buf.Bytes()
+		resp, err := hs.ClusterBuffer(context.Background(), breq)
+		log.Debug().Msgf("/clusterBuffer %v", resp)
+		js, err := json.Marshal(resp)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
+	}
+
+	return http.HandlerFunc(fn)
+}
+
+func restServer(hs *HollomanServer) {
+
+	http.Handle("/capabilities", restCapabilities(hs))
+	http.Handle("/clusterBuffer", restClusterBuffer(hs))
+
+	log.Fatal().Msgf("server: %v", http.ListenAndServe(rest_port, nil))
+}
 
 func init() {
-
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 
 	flag.StringVar(&curveFile, "curve", "hilbert_curve.dat.gz", "pre-generated hilbert curve (gzip compressed)")
-	flag.StringVar(&location, "listen", ":50051", "location to listen :port or /path/to/unix.socket")
+	flag.StringVar(&location, "grpc", ":50051", "location to listen :port or /path/to/unix.socket")
 	flag.StringVar(&filename, "f", "", "file to generate an identifier for")
+	flag.StringVar(&rest_port, "rest-port", ":50005", "port to listen for REST transactions")
 
 	server := flag.Bool("S", false, "Server")
 	client := flag.Bool("C", false, "Client")
@@ -84,21 +153,28 @@ func init() {
 	ssdf = flag.Bool("ssdeep", false, "enable ssdeep results")
 	dna = flag.Bool("dna", false, "the server should only be used for DNA clustering")
 	verbose = flag.Bool("v", false, "verbose")
+	licence := flag.Bool("license", false, "print licence")
 
 	debug := flag.Bool("debug", false, "sets log level to debug")
 	flag.Parse()
+
+	if *licence {
+		fmt.Println(LICENCE)
+		os.Exit(0)
+	}
 
 	if *help {
 		flag.Usage()
 		os.Exit(0)
 	}
 
-	if *server == false && *client == false {
-		ep = "stand_alone"
-	} else if *server {
+	ep = "stand_alone"
+	if *server {
 		ep = "server"
 	} else if *client {
 		ep = "client"
+	} else if len(rest_port) > 0 {
+		ep = "rest_server"
 	} else {
 		flag.Usage()
 	}
@@ -176,14 +252,14 @@ func (server *HollomanServer) Capabilities(context.Context, *holloman.ServiceCap
 	cah := new(holloman.ServiceCapabilities)
 	cah.Acceleration = "none"
 	cah.MaxOrder = int32(server.curve.Order)
-	
-	cah.Magic="filemagic"
+
+	cah.Magic = "filemagic"
 	if *dna {
-		cah.Magic="dna/iching"
+		cah.Magic = "dna/iching"
 	}
-	cah.Ssdeep=false
-	if(*ssdf){
-		cah.Ssdeep=true
+	cah.Ssdeep = false
+	if *ssdf {
+		cah.Ssdeep = true
 	}
 
 	return cah, nil
@@ -193,15 +269,28 @@ func (server *HollomanServer) ClusterBuffer(ctx context.Context, req *holloman.B
 
 	var voxel []byte
 	br = new(holloman.BufferResponse)
+	if len(req.Label) > 0 {
+		br.Label=req.Label
+	}
+	if len(req.Buffer) < 64 {
+		return nil, fmt.Errorf("buffer length of %d is too small. minum length is %d", len(req.Buffer), BUFFER_LEN_MIN)
+	}
 	voxel, br.HOrder, err = server.curve.MapBuffer(req.Buffer)
 	if *dna {
 		br.Magic = "dna/iching"
-		br.Id = []byte(fmt.Sprintf("%c.%032x", holloman.ORDER_ALPHABET[br.HOrder], voxel))
+		br.Id = fmt.Sprintf("%c.%032x", holloman.ORDER_ALPHABET[br.HOrder], voxel)
 	} else {
-		br.Magic, err  = server.m.Buffer(req.Buffer)
+		server.mu.Lock()
+		br.Magic, err = server.m.Buffer(req.Buffer)
+		// br.Magic = magic.Buffer( server.m, req.Buffer)
+		defer server.mu.Unlock()
 		_ = err
 		ch32 := xxhash.ChecksumString32(fmt.Sprintf("%-60.60s", br.Magic))
-		br.Id = []byte(fmt.Sprintf("%c%08x.%32.32x", holloman.ORDER_ALPHABET[br.HOrder], ch32, voxel))
+		br.Id = fmt.Sprintf("%c%08x.%32.32x", holloman.ORDER_ALPHABET[br.HOrder], ch32, voxel)
+		// preform sha1 on buffer
+ 		var sha = sha1.New()
+ 		sha.Write(req.Buffer)
+ 		br.Sha1 = fmt.Sprintf("%40x", sha.Sum(nil))
 	}
 
 	if *ssdf {
@@ -212,6 +301,8 @@ func (server *HollomanServer) ClusterBuffer(ctx context.Context, req *holloman.B
 		}
 		br.Ssdeep = s
 	}
+
+
 	return br, nil
 }
 
@@ -219,7 +310,7 @@ func withServerUnaryInterceptor() grpc.ServerOption {
 	return grpc.UnaryInterceptor(serverInterceptor)
 }
 func main() {
-    var srvr *HollomanServer
+	var srvr *HollomanServer
 
 	if curveFile == "" {
 		flag.Usage()
@@ -246,6 +337,9 @@ func main() {
 	case "server":
 		server(srvr)
 
+	case "rest_server":
+		restServer(srvr)
+
 	case "client":
 		client()
 
@@ -262,6 +356,7 @@ func main() {
 		defer syscall.Munmap(buffer)
 		voxel, order, err := curve.MapBuffer(buffer)
 		mbuff, err := srvr.m.Buffer(buffer)
+		// mbuff := magic.Buffer(srvr.m, buffer)
 		ch32 := xxhash.ChecksumString32(fmt.Sprintf("%-60.60s", mbuff))
 
 		if *dna {

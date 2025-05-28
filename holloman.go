@@ -137,7 +137,7 @@ func (curve *HilbertCurve) MapBuffer(buffer []byte) (outputBuffer []byte, order 
 
 //	mw := imagick.NewMagickWand()
 
-	err = rez.Convert(output_im2, im, rez.NewLanczosFilter(5))
+	err = rez.Convert(output_im2, im, rez.NewLanczosFilter(3))
 	if err != nil {
 		log.Error().Msg(err.Error())
 	}
