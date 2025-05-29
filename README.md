@@ -1,9 +1,12 @@
-# holloman
+# HuntingHash (holloman)
 
 A fuzzy hashing for files and a special case for DNA. 
 
 ## Identifier Description
 
+Identifer of /bin/ls on X86_64 j362e4894.23655e5f5a6264630807270e00000000
+
+[order][xxhas(libmagic)].[128bits]
 A Holloman Identifer for files is composed of three parts, two in the prefix and the suffix. They are seporated by a (.) dot. The prefix  has two parts, the first is a single char that specifies the order of the curve used to generate the curve. The order should be larger than the file's size, it't order-1 should be smaller than the file. The second part is a hex encoded 32bit unsigned integer derived from the file's first 60 characters (left justified) of the file's magic. The suffix is a 128 bit intger expressed in hex.
 
 ## The Process
@@ -16,7 +19,9 @@ A sumular procedure is applied for DNA, less the file magic. The prefix is simpl
 # LICENCE Review
 
 To compare the Rick's Lifestyle Licence (RLL 1.0) with common open source licenses, I'll evaluate it against well-known open source licenses like the MIT License, GNU General Public License (GPL), Apache License 2.0, and BSD Licenses, focusing on key aspects such as permissions, restrictions, redistribution, and philosophy. The comparison will highlight how RLL 1.0 aligns with or diverges from the principles of open source software as defined by the Open Source Initiative (OSI).
+
 ## Definition of Open Source
+
 The OSI defines open source software as software that can be freely used, modified, and distributed, with source code available, under licenses that meet criteria like free redistribution, no discrimination against persons or fields of endeavor, and no restriction on derivative works. Common open source licenses (MIT, GPL, Apache, BSD) adhere to these principles, but RLL 1.0 introduces unique constraints.
 
 ## Key Differences from Open Source Licenses
@@ -24,9 +29,11 @@ The OSI defines open source software as software that can be freely used, modifi
 ## Field-of-Use Restrictions:
 RLL 1.0: Imposes significant restrictions by prohibiting Competing Use (e.g., AI training, substituting licensor’s products, or offering similar functionality). This violates OSI’s principle of no discrimination against fields of endeavor (e.g., restricting AI use or commercial competition).
 Open Source Licenses: MIT, Apache, and BSD have no field-of-use restrictions, allowing use in any context, including commercial or AI applications. GPL allows all uses but requires copyleft compliance.
+
 ### License Key Protection:
 RLL 1.0: Explicitly prohibits tampering with or bypassing license key functionality, suggesting a focus on controlling access to certain software features. This is uncommon in open source licenses, which typically assume full access to source code and functionality.
 Open Source Licenses: No such restrictions exist, as open source licenses encourage full access to source code and functionality without technical barriers like license keys.
+
 ### Redistribution Constraints:
 RLL 1.0: Redistribution is allowed but limited to non-competing uses, and all copies must include the license terms. This restriction on commercial redistribution for competing purposes is not OSI-compliant.
 Open Source Licenses: MIT, Apache, and BSD allow unrestricted redistribution (with notice retention). GPL requires source code and GPL licensing for derivatives but doesn’t restrict commercial use.
