@@ -7,7 +7,8 @@ A fuzzy hashing for files and a special case for DNA.
 Identifer of /bin/ls on X86_64 j362e4894.23655e5f5a6264630807270e00000000
 
 [order][xxhas(libmagic)].[128bits]
-A Holloman Identifer for files is composed of three parts, two in the prefix and the suffix. They are seporated by a (.) dot. The prefix  has two parts, the first is a single char that specifies the order of the curve used to generate the curve. The order should be larger than the file's size, it't order-1 should be smaller than the file. The second part is a hex encoded 32bit unsigned integer derived from the file's first 60 characters (left justified) of the file's magic. The suffix is a 128 bit intger expressed in hex.
+
+A Holloman Identifer for files is composed of three parts, two in the prefix and one in the suffix. They are seporated by a (.) dot. The prefix  has two parts, the first is a single char that specifies the order of the curve used to generate the curve. The order should be larger than the file's size, it's order-1 should be smaller than the file. The second part is a hex encoded 32bit unsigned integer derived from the file's first 60 characters (left justified) of the file's magic. The suffix is a 128 bit intger expressed in hex.
 
 ## The Process
 A file is mapped onto a hilbert curve as 8bit greyscale pixels, this preserves the locality of bytes. The image is reduced. Inour case it is reduced to a 16 byte image by a lanczos three lobe resampler. This process appears to preserve enough of the origional file to "cluster" simular files. identifiers with the same prefix my be measured for distance by counting the number of bits different by applying a locical XOR to two 128 bit integers.
