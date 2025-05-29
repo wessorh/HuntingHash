@@ -194,7 +194,28 @@ func init() {
 	log.Debug().Msgf("ep: %s", ep)
 }
 
+func readStdIn() []byte {
+    var result []byte
+    buffer := make([]byte, 1024)
+
+    for {
+        n, err := os.Stdin.Read(buffer)
+        if err == io.EOF {
+            break
+        }
+        if err != nil {
+            fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+            return nil
+        }
+        result = append(result, buffer[:n]...)
+    }
+
+    return result
+}
+
 func client() {
+	var buffer []byte
+
 	// Create a new client
 	client, err := NewHollomanClient(location)
 	if err != nil {
@@ -211,11 +232,15 @@ func client() {
 	log.Info().Msgf("Capabilities received: %v", capabilities)
 **/
 	// Example: Cluster buffer
-	buffer, err := getMmappedBuffer(filename)
-	if err != nil {
-		log.Fatal().Msgf(err.Error())
+	if filename == "-" {
+		buffer = readStdIn()
+	}else{
+		buffer, err = getMmappedBuffer(filename)
+		if err != nil {
+			log.Fatal().Msgf(err.Error())
+		}
+		defer syscall.Munmap(buffer)
 	}
-	defer syscall.Munmap(buffer)
 	//sampleBuffer := []byte("sample data")
 	rsp, err := client.ClusterBuffer(buffer, filename)
 	if err != nil {
