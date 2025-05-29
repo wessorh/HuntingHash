@@ -26,6 +26,8 @@ message BufferResponse {
 	string  Ssdeep      = 40 ;
 	string  Sha1		= 50 ;
 	string  Label       = 60 ;
+	string  Tlsh		= 70 ;
+	string  Sdhash		= 80 ;
 } ; 
 
 service Holloman {

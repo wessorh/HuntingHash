@@ -32,6 +32,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/glaslos/ssdeep"
+	"github.com/glaslos/tlsh"
+	"github.com/eciavatta/sdhash"
 )
 
 const (
@@ -39,15 +41,17 @@ const (
 )
 
 var (
-	curveFile string
-	damonize  *bool
-	dna       *bool
-	location  string
-	ep        string // execution pattern (client, server, stand_alone)
-	filename  string
-	verbose   *bool
-	ssdf      *bool
-	rest_port string
+	curveFile   string
+	damonize    *bool
+	dna         *bool
+	location    string
+	ep          string // execution pattern (client, server, stand_alone)
+	filename    string
+	verbose     *bool
+	ssdf        *bool
+	rest_port   string
+	do_sdhash   *bool
+	do_tlsh		*bool
 
 	//go:embed LICENSE.md
 	LICENCE string
@@ -154,6 +158,8 @@ func init() {
 	dna = flag.Bool("dna", false, "the server should only be used for DNA clustering")
 	verbose = flag.Bool("v", false, "verbose")
 	licence := flag.Bool("license", false, "print licence")
+    do_tlsh = flag.Bool("tlsh", false, "calculate TLSH")
+    do_sdhash = flag.Bool("sdhash", false, "calculate TLSH")
 
 	debug := flag.Bool("debug", false, "sets log level to debug")
 	flag.Parse()
@@ -197,12 +203,13 @@ func client() {
 	defer client.Close()
 
 	// Example: Get capabilities
+	/**
 	capabilities, err := client.GetCapabilities("fast", 5)
 	if err != nil {
 		log.Fatal().Msgf("Failed to get capabilities: %v", err)
 	}
 	log.Info().Msgf("Capabilities received: %v", capabilities)
-
+**/
 	// Example: Cluster buffer
 	buffer, err := getMmappedBuffer(filename)
 	if err != nil {
@@ -210,12 +217,13 @@ func client() {
 	}
 	defer syscall.Munmap(buffer)
 	//sampleBuffer := []byte("sample data")
-	response, err := client.ClusterBuffer(buffer)
+	rsp, err := client.ClusterBuffer(buffer, filename)
 	if err != nil {
 		log.Fatal().Msgf("Failed to cluster buffer: %v", err)
 	}
-	log.Info().Msgf("Cluster response received: HOrder=%d, Id=%s, Magic=%s",
-		response.HOrder, string(response.Id), response.Magic)
+	log.Debug().Msgf("Cluster response received: HOrder=%d, Id=%s, Magic=%s",
+		rsp.HOrder, rsp.Id, rsp.Magic)
+	fmt.Printf("%s\t%s\t%s\t%s\t%s\n", filename, rsp.Id, rsp.Ssdeep, rsp.Tlsh, rsp.Sdhash)
 
 }
 
@@ -291,6 +299,7 @@ func (server *HollomanServer) ClusterBuffer(ctx context.Context, req *holloman.B
  		var sha = sha1.New()
  		sha.Write(req.Buffer)
  		br.Sha1 = fmt.Sprintf("%40x", sha.Sum(nil))
+ 		br.Label = req.Label
 	}
 
 	if *ssdf {
@@ -300,6 +309,21 @@ func (server *HollomanServer) ClusterBuffer(ctx context.Context, req *holloman.B
 			br.Ssdeep = err.Error()
 		}
 		br.Ssdeep = s
+	}
+
+	if *do_sdhash {
+		f, err:= sdhash.CreateSdbfFromBytes(req.Buffer)
+		if err == nil {
+			sdbf := f.Compute()
+			br.Sdhash = sdbf.String()
+		}
+	}
+
+	if *do_tlsh && len(req.Buffer) > 256 {
+		f, err := tlsh.HashBytes(req.Buffer)
+		if err == nil {
+			br.Tlsh = f.String()
+		}
 	}
 
 
@@ -443,12 +467,13 @@ func (c *HollomanClient) GetCapabilities(acceleration string, maxOrder int32) (*
 }
 
 // ClusterBuffer calls the ClusterBuffer RPC
-func (c *HollomanClient) ClusterBuffer(buffer []byte) (*holloman.BufferResponse, error) {
+func (c *HollomanClient) ClusterBuffer(buffer []byte, filename string) (*holloman.BufferResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	request := &holloman.BufferRequest{
 		Buffer: buffer,
+		Label: filename,
 	}
 
 	return c.client.ClusterBuffer(ctx, request)
