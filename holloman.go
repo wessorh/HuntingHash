@@ -146,9 +146,9 @@ func (curve *HilbertCurve) MapBuffer(buffer []byte) (outputBuffer []byte, order 
 
 	outputBuffer = output_im2.Pix
 	//outputBuffer, err = lancozDownSample(tmpBuffer, int(stride) , 2 )
-    if zerolog.GlobalLevel() == zerolog.DebugLevel {
-	    PrintImage4x4(outputBuffer)
-    }
+    // if zerolog.GlobalLevel() == zerolog.DebugLevel {
+	//     PrintImage4x4(outputBuffer)
+    // }
 
 	return outputBuffer, order, nil 
 }

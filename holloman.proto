@@ -2,7 +2,7 @@
 // Licenced under the RLL 1.0
 // protoc --go_out=.  --go-grpc_out=. holloman.proto
 syntax = "proto3";
-option go_package = "main/iidf/holloman";
+option go_package = "github.com/wessorh/HuntingHash";
 
 package holloman ;
 
