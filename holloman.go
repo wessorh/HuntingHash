@@ -86,6 +86,7 @@ func LoadHilbertCurve(filename string) (*HilbertCurve, error) {
     return curve, nil
 }
 
+
 func HilbertCurveOrder(n int64) int {
     if n <= 0 {
         return 0
@@ -103,6 +104,18 @@ func HilbertCurveOrder(n int64) int {
     
     // Return ceiling of order/2
     return (order + 1) >> 1
+}
+
+func (curve *HilbertCurve) MapPoint(uint64 i, int order) ( x,y uint32, err error){
+	if order > curve.Order {
+		return 0,0, fmt.Errorf("requested order (%d) exceeds curve data order (%d)", order, curve.Order)
+	}
+
+	// rotate
+	x := curve.Y[ i ];
+    y := curve.X[ i ];
+
+    return x, y, nil
 }
 
 func (curve *HilbertCurve) MapBuffer(buffer []byte) (outputBuffer []byte, order int32, err error){
