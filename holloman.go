@@ -106,14 +106,14 @@ func HilbertCurveOrder(n int64) int {
     return (order + 1) >> 1
 }
 
-func (curve *HilbertCurve) MapPoint(uint64 i, int order) ( x,y uint32, err error){
-	if order > curve.Order {
+func (curve *HilbertCurve) MapPoint(i, order int) ( x,y uint32, err error){
+	if uint32(order) > curve.Order {
 		return 0,0, fmt.Errorf("requested order (%d) exceeds curve data order (%d)", order, curve.Order)
 	}
 
 	// rotate
-	x := curve.Y[ i ];
-    y := curve.X[ i ];
+	x = curve.Y[ i ];
+    y = curve.X[ i ];
 
     return x, y, nil
 }

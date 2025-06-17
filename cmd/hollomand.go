@@ -21,12 +21,13 @@ import (
 	"net/http"
     "crypto/sha1"
 	"encoding/json"
+	"path/filepath"
 
 	"github.com/OneOfOne/xxhash"
 	"github.com/hosom/gomagic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"main/iidf/holloman"
+	hh "github.com/wessorh/HuntingHash"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -52,21 +53,22 @@ var (
 	rest_port   string
 	do_sdhash   *bool
 	do_tlsh		*bool
+	dir			string
 
 	//go:embed LICENSE.md
 	LICENCE string
 )
 
 type HollomanServer struct {
-	holloman.HollomanServer
+	hh.HollomanServer
 
-	curve 	*holloman.HilbertCurve
+	curve 	*hh.HilbertCurve
 	m     	*magic.Magic
 	mu 		sync.Mutex // mutex prevents cgo memory access errors on calls to libmagic
 }
 
 
-func NewServer(curve *holloman.HilbertCurve, dna bool) (s *HollomanServer, err error) {
+func NewServer(curve *hh.HilbertCurve, dna bool) (s *HollomanServer, err error) {
 
 	s = new(HollomanServer)
 	s.curve = curve
@@ -102,7 +104,7 @@ func restCapabilities(hs *HollomanServer) http.Handler {
 func restClusterBuffer(hs *HollomanServer) http.Handler {
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		breq := new(holloman.BufferRequest)
+		breq := new(hh.BufferRequest)
 		r.ParseMultipartForm(32 << 20) // limit your max input length!
 		var buf bytes.Buffer
 		// in your case file would be fileupload
@@ -150,6 +152,7 @@ func init() {
 	flag.StringVar(&location, "grpc", ":50051", "location to listen :port or /path/to/unix.socket")
 	flag.StringVar(&filename, "f", "", "file to generate an identifier for")
 	flag.StringVar(&rest_port, "rest-port", ":50005", "port to listen for REST transactions")
+	flag.StringVar(&dir, "d", "", "recursive process all fines in directory")
 
 	server := flag.Bool("S", false, "Server")
 	client := flag.Bool("C", false, "Client")
@@ -193,6 +196,48 @@ func init() {
 
 	log.Debug().Msgf("ep: %s", ep)
 }
+
+
+func dirIsEmpty(name string) (bool, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	_, err = f.Readdirnames(1) // Or f.Readdir(1)
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err // Either not empty or error, suits both cases
+}
+
+func producer(path string, info os.FileInfo, err error) error {
+	return nil
+}
+
+func processDirectory(dir string){
+			// walk the dir until it is empty
+			for {
+				err := filepath.Walk(dir, producer)
+
+				if err != nil {
+					log.Error().Msg(err.Error())
+					continue
+				}
+
+				is_empty, err := dirIsEmpty(dir)
+
+				if is_empty || err != nil {
+					log.Info().Msgf("%s is empty\n", dir)
+					break
+				}
+
+				// default exit loop until we write better dir empty code...
+				break
+			}
+}
+
 
 func readStdIn() []byte {
     var result []byte
@@ -259,7 +304,7 @@ func server(srvr *HollomanServer) {
 	}
 
 	s := grpc.NewServer(grpc.MaxRecvMsgSize(1024*10e7), grpc.MaxSendMsgSize(1024*10e7), withServerUnaryInterceptor())
-	holloman.RegisterHollomanServer(s, srvr)
+	hh.RegisterHollomanServer(s, srvr)
 
 	log.Debug().Msgf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
@@ -281,8 +326,8 @@ func serverInterceptor(ctx context.Context, req interface{}, info *grpc.UnarySer
 	}
 	return h, err
 }
-func (server *HollomanServer) Capabilities(context.Context, *holloman.ServiceCapabilities) (*holloman.ServiceCapabilities, error) {
-	cah := new(holloman.ServiceCapabilities)
+func (server *HollomanServer) Capabilities(context.Context, *hh.ServiceCapabilities) (*hh.ServiceCapabilities, error) {
+	cah := new(hh.ServiceCapabilities)
 	cah.Acceleration = "none"
 	cah.MaxOrder = int32(server.curve.Order)
 
@@ -298,10 +343,10 @@ func (server *HollomanServer) Capabilities(context.Context, *holloman.ServiceCap
 	return cah, nil
 }
 
-func (server *HollomanServer) ClusterBuffer(ctx context.Context, req *holloman.BufferRequest) (br *holloman.BufferResponse, err error) {
+func (server *HollomanServer) ClusterBuffer(ctx context.Context, req *hh.BufferRequest) (br *hh.BufferResponse, err error) {
 
 	var voxel []byte
-	br = new(holloman.BufferResponse)
+	br = new(hh.BufferResponse)
 	if len(req.Label) > 0 {
 		br.Label=req.Label
 	}
@@ -311,7 +356,7 @@ func (server *HollomanServer) ClusterBuffer(ctx context.Context, req *holloman.B
 	voxel, br.HOrder, err = server.curve.MapBuffer(req.Buffer)
 	if *dna {
 		br.Magic = "dna/iching"
-		br.Id = fmt.Sprintf("%c.%032x", holloman.ORDER_ALPHABET[br.HOrder], voxel)
+		br.Id = fmt.Sprintf("%c.%032x", hh.ORDER_ALPHABET[br.HOrder], voxel)
 	} else {
 		server.mu.Lock()
 		br.Magic, err = server.m.Buffer(req.Buffer)
@@ -319,7 +364,7 @@ func (server *HollomanServer) ClusterBuffer(ctx context.Context, req *holloman.B
 		defer server.mu.Unlock()
 		_ = err
 		ch32 := xxhash.ChecksumString32(fmt.Sprintf("%-60.60s", br.Magic))
-		br.Id = fmt.Sprintf("%c%08x.%32.32x", holloman.ORDER_ALPHABET[br.HOrder], ch32, voxel)
+		br.Id = fmt.Sprintf("%c%08x.%32.32x", hh.ORDER_ALPHABET[br.HOrder], ch32, voxel)
 		// preform sha1 on buffer
  		var sha = sha1.New()
  		sha.Write(req.Buffer)
@@ -327,7 +372,7 @@ func (server *HollomanServer) ClusterBuffer(ctx context.Context, req *holloman.B
  		br.Label = req.Label
 	}
 
-	if *ssdf {
+	if *ssdf && len(req.Buffer) > 4096 {
 		//preform ssdeep hash on buffer
 		s, err := ssdeep.FuzzyBytes(req.Buffer)
 		if err != nil {
@@ -368,7 +413,7 @@ func main() {
 
 	if ep != "client" {
 		//read the compressed curve
-		curve, err := holloman.LoadHilbertCurve(curveFile)
+		curve, err := hh.LoadHilbertCurve(curveFile)
 		if err != nil {
 			log.Fatal().Msgf("curve file %s is invalid", curveFile)
 		}
@@ -394,7 +439,7 @@ func main() {
 
 	case "stand_alone":
 		//read the compressed curve
-		curve, err := holloman.LoadHilbertCurve(curveFile)
+		curve, err := hh.LoadHilbertCurve(curveFile)
 		if filename == "" {
 			return
 		}
@@ -414,7 +459,7 @@ func main() {
 			if *verbose {
 				fmt.Printf("magic: %s\n", mbuff)
 			}
-			fmt.Printf("%s %c%08x.%32.32x\n", filename, holloman.ORDER_ALPHABET[order], ch32, voxel)
+			fmt.Printf("%s %c%08x.%32.32x\n", filename, hh.ORDER_ALPHABET[order], ch32, voxel)
 		}
 
 	default:
@@ -452,7 +497,7 @@ func getMmappedBuffer(filename string) ([]byte, error) {
 }
 
 type HollomanClient struct {
-	client holloman.HollomanClient
+	client hh.HollomanClient
 	conn   *grpc.ClientConn
 }
 
@@ -466,7 +511,7 @@ func NewHollomanClient(serverAddr string) (*HollomanClient, error) {
 		return nil, err
 	}
 
-	client := holloman.NewHollomanClient(conn)
+	client := hh.NewHollomanClient(conn)
 	return &HollomanClient{
 		client: client,
 		conn:   conn,
@@ -479,11 +524,11 @@ func (c *HollomanClient) Close() error {
 }
 
 // GetCapabilities calls the Capabilities RPC
-func (c *HollomanClient) GetCapabilities(acceleration string, maxOrder int32) (*holloman.ServiceCapabilities, error) {
+func (c *HollomanClient) GetCapabilities(acceleration string, maxOrder int32) (*hh.ServiceCapabilities, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	capabilities := &holloman.ServiceCapabilities{
+	capabilities := &hh.ServiceCapabilities{
 		Acceleration: acceleration,
 		MaxOrder:     maxOrder,
 	}
@@ -492,11 +537,11 @@ func (c *HollomanClient) GetCapabilities(acceleration string, maxOrder int32) (*
 }
 
 // ClusterBuffer calls the ClusterBuffer RPC
-func (c *HollomanClient) ClusterBuffer(buffer []byte, filename string) (*holloman.BufferResponse, error) {
+func (c *HollomanClient) ClusterBuffer(buffer []byte, filename string) (*hh.BufferResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	request := &holloman.BufferRequest{
+	request := &hh.BufferRequest{
 		Buffer: buffer,
 		Label: filename,
 	}
