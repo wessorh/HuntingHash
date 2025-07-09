@@ -1,6 +1,6 @@
 
 
-package holloman
+package HuntingHash
 
 import (
     "compress/gzip"
