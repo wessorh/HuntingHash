@@ -4,6 +4,10 @@ package main
 // Copyright 2025 (c) By Rick Wesson & Support Intelligence, Inc.
 // Licenced under the RLL 1.0
 
+/**
+  we havn't implemented the REST client, use python or yara to test it.
+**/
+
 // go:generate  protoc --go_out=.  --go-grpc_out=. holloman.proto
 import (
 	"context"
@@ -87,7 +91,7 @@ func restCapabilities(hs *HollomanServer) http.Handler {
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		cp, _ := hs.Capabilities(context.Background(), nil)
-		log.Debug().Msgf("/capabilities %v", cp)
+		log.Debug().Msgf("/holloman/v2/capabilities %v", cp)
 		js, err := json.Marshal(cp)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -104,17 +108,18 @@ func restCapabilities(hs *HollomanServer) http.Handler {
 func restClusterBuffer(hs *HollomanServer) http.Handler {
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
+        log.Info().Msgf("%v", r)
 		breq := new(hh.BufferRequest)
 		r.ParseMultipartForm(32 << 20) // limit your max input length!
 		var buf bytes.Buffer
 		// in your case file would be fileupload
-		file, header, err := r.FormFile("file")
+		file, header, err := r.FormFile("holloman-data")
 		if err != nil {
 			panic(err)
 		}
 		defer file.Close()
 		name := strings.Split(header.Filename, ".")
-//		log.Debug().Msgf("File name %s\n", name[0])
+		log.Debug().Msgf("File name %s\n", name[0])
 		breq.Label=name[0]
 		// Copy the file data to my buffer
 		io.Copy(&buf, file)
@@ -135,12 +140,13 @@ func restClusterBuffer(hs *HollomanServer) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+
 func restServer(hs *HollomanServer) {
 
-	http.Handle("/capabilities", restCapabilities(hs))
-	http.Handle("/clusterBuffer", restClusterBuffer(hs))
+	http.Handle("/holloman/v2/capabilities", restCapabilities(hs))
+	http.Handle("/holloman/v2/hh128", restClusterBuffer(hs))
 
-	log.Fatal().Msgf("server: %v", http.ListenAndServe(rest_port, nil))
+	log.Error().Msgf("server: %v", http.ListenAndServe(rest_port, nil))
 }
 
 func init() {
@@ -511,7 +517,7 @@ func NewHollomanClient(serverAddr string) (*HollomanClient, error) {
 		return nil, err
 	}
 
-	client := hh.NewHollomanClient(conn)
+	client := hh .NewHollomanClient(conn)
 	return &HollomanClient{
 		client: client,
 		conn:   conn,
