@@ -13,7 +13,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-    "github.com/bamiaux/rez"
+    "github.com/wessorh/rez"
 	// "gopkg.in/gographics/imagick.v2/imagick"
 )
 const (
