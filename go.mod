@@ -17,17 +17,23 @@ require (
 	github.com/datatogether/warc v0.0.0-20190806125150-74ef3f5ea69f // indirect
 	github.com/eciavatta/sdhash v0.0.0-20210117153940-a7b55306eeff // indirect
 	github.com/glaslos/tlsh v0.3.0 // indirect
+	github.com/go-redis/redis v6.15.9+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hosom/gomagic v0.0.0-20160718182707-cbc00aac97a4 // indirect
+	github.com/jehiah/go-strftime v0.0.0-20171201141054-1d33003b3869 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.3 // indirect
 	github.com/magefile/mage v1.15.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
+	github.com/minio/md5-simd v1.1.2 // indirect
+	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/panjf2000/ants/v2 v2.11.3 // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/tmthrgd/go-popcount v0.0.0-20190904054823-afb1ace8b04f // indirect
 	github.com/vimeo/go-magic v1.0.0 // indirect
+	github.com/wessorh/rez v0.0.0-20250720003350-7c22d8c646d8 // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect

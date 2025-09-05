@@ -8,12 +8,12 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 protoc --go_out=.  --go-grpc_out=. holloman.proto
 mv github.com/wessorh/HuntingHash/holloman* .
 
+cp ./LICENSE.md ./cmd
 git clone https://github.com/bamiaux/rez
 cd rez
 go mod init github.com/bamiaux/rez
 go mod tidy
 cd ../cmd
-cp ../LICENSE.md .
 go build .
 cd ../curve
 go build .

@@ -126,7 +126,7 @@ func restClusterBuffer(hs *HollomanServer) http.Handler {
 
 		breq.Buffer = buf.Bytes()
 		resp, err := hs.ClusterBuffer(context.Background(), breq)
-		log.Debug().Msgf("/clusterBuffer %v", resp)
+		log.Debug().Msgf("/holloman/v2/hh128 %v", resp)
 		js, err := json.Marshal(resp)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
